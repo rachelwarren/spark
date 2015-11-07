@@ -86,6 +86,8 @@ final class QuantileDiscretizer(override val uid: String)
   override def fit(dataset: DataFrame): Bucketizer = {
     val samples = QuantileDiscretizer.getSampledInput(dataset.select($(inputCol)), $(numBuckets))
       .map { case Row(feature: Double) => feature }
+      //candidates adds the number of file 
+    val quantilesToFind = 
     val candidates = QuantileDiscretizer.findSplitCandidates(samples, $(numBuckets) - 1)
     val splits = QuantileDiscretizer.getSplits(candidates)
     val bucketizer = new Bucketizer(uid).setSplits(splits)
@@ -98,18 +100,38 @@ final class QuantileDiscretizer(override val uid: String)
 private[feature] object QuantileDiscretizer extends Logging {
   /**
    * Sampling from the given dataset to collect quantile statistics.
+   * Will keep as an RDD so that we can compute the bins in a distributed way 
    */
-  def getSampledInput(dataset: DataFrame, numBins: Int): Array[Row] = {
+  def getSampledInput(dataset: DataFrame, numBins: Int): RDD[Row] = {
     val totalSamples = dataset.count()
     require(totalSamples > 0,
       "QuantileDiscretizer requires non-empty input dataset but was given an empty input.")
     val requiredSamples = math.max(numBins * numBins, 10000)
     val fraction = math.min(requiredSamples / dataset.count(), 1.0)
-    dataset.sample(withReplacement = false, fraction, new XORShiftRandom().nextInt()).collect()
+    dataset.sample(withReplacement = false, fraction, new XORShiftRandom().nextInt())
   }
 
+//toDo: should the extra bin be short, or long .. i.e. round up or round down 
+  def generateQuantiles(numBins : Int, n : Int ) : Array[Integer] = {
+    val size = n / numBins
+    val quantiles = Array.range(0, numBins, size)
+    }
+  
+
+  def findSplitCandidates(sampleRDD : RDD[Row], 
+    quantiles : Array[Integer], columns : List[Int]) : Array[Double] = {
+    if(columns.length == 1){
+      //do something 
+    } else{
+      // do the full on goldilocks thing 
+    }
+
+
+  } 
+  
+
   /**
-   * Compute split points with respect to the sample distribution.
+   * This is where we put in the goldiLocks code 
    */
   def findSplitCandidates(samples: Array[Double], numSplits: Int): Array[Double] = {
     val valueCountMap = samples.foldLeft(Map.empty[Double, Int]) { (m, x) =>
